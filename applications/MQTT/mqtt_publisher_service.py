@@ -17,11 +17,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-#Setting the path for the config file
-parser = argparse.ArgumentParser()
-parser.add_argument("--mqtt_configfile_path", required=True)
-
-args = parser.parse_args()
 #Directory for docker container
 mounted_dir = Path("/mounted_dir")
 
