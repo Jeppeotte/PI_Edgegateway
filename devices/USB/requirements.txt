@@ -1,0 +1,7 @@
+wavio
+sounddevice
+valkey
+PyYAML
+numpy
+pydantic
+httpx

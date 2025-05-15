@@ -1,0 +1,5 @@
+fastapi
+ruamel.yaml
+pydantic
+uvicorn
+docker
