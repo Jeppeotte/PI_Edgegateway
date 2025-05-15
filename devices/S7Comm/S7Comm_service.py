@@ -32,9 +32,6 @@ if not args.device_service_config_path:
     logging.error("Error: You must provide --device_service_config_path (path to the device service config file from metadata.yaml).")
     sys.exit(1)
 
-#Directory for running locally
-#local_dir = r"C:\Users\jeppe\OneDrive - Aalborg Universitet\Masters\4. Semester\Gateway Configurator"
-#mounted_dir = Path(local_dir)
 #Directory for docker container
 mounted_dir = Path("/mounted_dir")
 

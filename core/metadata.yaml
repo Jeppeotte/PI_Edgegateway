@@ -4,75 +4,8 @@ identity:
   description: test
   ip: 192.168.0.238
 
-isa95:
-  enterprise: AalborgUniversity
-  site: AalborgEastCampus
-  area: RobotLaboratory
-  line: ScrewDrillingCells
-  cell: KukaCell
-
 services:
   device_services:
-    - device_id: Mic_1
-      protocol_type: USB
-      config: devices/USB/Mic_1
-      tested: false
-      activated: true
-    - device_id: Mic_1
-      protocol_type: USB
-      config: devices/USB/Mic_1
-      tested: false
-      activated: true
-    - device_id: mic_5
-      protocol_type: USB
-      config: devices/USB/mic_5
-      tested: false
-      activated: true
-    - device_id: mic_5
-      protocol_type: USB
-      config: devices/USB/mic_5
-      tested: false
-      activated: true
-    - device_id: mic_5
-      protocol_type: USB
-      config: devices/USB/mic_5
-      tested: false
-      activated: true
-    - device_id: mic_5
-      protocol_type: USB
-      config: devices/USB/mic_5
-      tested: false
-      activated: true
-    - device_id: mic_5
-      protocol_type: USB
-      config: devices/USB/mic_5
-      tested: false
-      activated: true
-    - device_id: mic_5
-      protocol_type: USB
-      config: devices/USB/mic_5
-      tested: false
-      activated: true
-    - device_id: Microphone 7
-      protocol_type: USB
-      config: devices/USB/Microphone 7.yaml
-      tested: false
-      activated: true
-    - device_id: microphone_8
-      protocol_type: USB
-      config: devices/USB/microphone_8.yaml
-      tested: false
-      activated: true
-    - device_id: Test_PLC1
-      protocol_type: S7Comm
-      config: devices/S7Comm/Test_PLC1.yaml
-      tested: false
-      activated: true
-    - device_id: Tetssplc
-      protocol_type: S7Comm
-      config: devices/S7Comm/Tetssplc.yaml
-      tested: false
-      activated: true
   application_services:
     - service: MQTT
       description: MQTT publisher

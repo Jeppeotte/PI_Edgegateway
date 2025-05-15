@@ -6,6 +6,7 @@ import yaml
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 # Configure logging to output INFO and above to stdout
 logging.basicConfig(
@@ -19,20 +20,34 @@ logger = logging.getLogger(__name__)
 #Setting the path for the config file
 parser = argparse.ArgumentParser()
 parser.add_argument("--mqtt_configfile_path", required=True)
-parser.add_argument("--metadata_path", required=True)
-parser.add_argument("--valkey_host", required=True)
 
 args = parser.parse_args()
+#Directory for docker container
+mounted_dir = Path("/mounted_dir")
 
-def get_node_identity(metadata_path):
+def get_node_identity():
+    metadata_path = mounted_dir.joinpath("core/metadata.yaml")
+
+    if not metadata_path.exists():
+        logger.error(f"Cant find the metadata.yaml file under path: {metadata_path}")
+        sys.exit(1)
+
     # Get the identity of the node
     with open(metadata_path, 'r') as f:
         metadata_config = yaml.safe_load(f)
 
     return metadata_config["identity"]
 
-def mqtt_connection(identity,mqtt_configfile_path):
+def mqtt_connection(identity):
     try:
+        #Path to mqtt config file
+        mqtt_configfile_path = mounted_dir.joinpath("applications/MQTT/mqtt_publisher.yaml")
+
+        if not mqtt_configfile_path.exists():
+            logger.error(f"Cant find the config file for the mqtt publisher under path: {mqtt_configfile_path}")
+            sys.exit(1)
+
+
         with open(mqtt_configfile_path, 'r') as f:
             mqtt_config = yaml.safe_load(f)
     except FileNotFoundError:
@@ -69,10 +84,10 @@ def mqtt_connection(identity,mqtt_configfile_path):
 
     except TimeoutError:
         logger.error("Error: Connection timed out. Check network connectivity.")
-        exit()
+        sys.exit(1)
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
-        exit()
+        sys.exit(1)
 
     logger.info("Connection to the broker was successful!")
     # Publish DBIRTH
@@ -87,12 +102,12 @@ def mqtt_connection(identity,mqtt_configfile_path):
 
 # Connecting to the internal message bus
 def valkey_connection():
-    valkey_client = valkey.Valkey(host=args.valkey_host, port=6379)
+    valkey_client = valkey.Valkey(host="localhost", port=6379)
 
     # Test connection
     if not valkey_client.ping():
         logger.error("No connection to the internal message bus")
-        exit()
+        sys.exit(1)
 
     logger.info("Connection to the internal message bus was successful")
     return  valkey_client
@@ -116,7 +131,7 @@ def receive_and_publish_messages(valkey_client, mqtt_client):
     return
 
 if __name__ == "__main__":
-    node_identity = get_node_identity(args.metadata_path)
+    node_identity = get_node_identity()
     valkey_client = valkey_connection()
-    mqtt_client = mqtt_connection(node_identity,args.mqtt_configfile_path)
+    mqtt_client = mqtt_connection(node_identity)
     receive_and_publish_messages(valkey_client, mqtt_client)

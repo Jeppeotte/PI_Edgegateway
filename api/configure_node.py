@@ -142,7 +142,8 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
         yaml.indent(mapping=2, sequence=4, offset=2)
 
         if not config_path.exists():
-            raise HTTPException(status_code=500, detail=f"mqtt_publisher.yaml does not exist in the following path {config_path}")
+            # Create file path if it does not exist
+            config_path.mkdir(parents=True, exist_ok=True)
 
         with open(config_path, 'r') as f:
             config = yaml.load(f)
@@ -164,13 +165,9 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
             volumes={
                 host_mounted_dir: {"bind": "/mounted_dir", "mode": "rw"},
             },
-            command=[
-                "--mqtt_configfile_path", "/mounted_dir/applications/MQTT/mqtt_publisher.yaml",
-                "--metadata_path", "/mounted_dir/core/metadata.yaml",
-                "--valkey_host", "host.docker.internal",
-            ],
-            extra_hosts={"host.docker.internal": "host-gateway"},
-            detach=True
+            extra_hosts={"localhost": "host-gateway"},
+            detach=True,
+            restart_policy={"Name": "unless-stopped"}
         )
         return "MQTT application has been launched"
     except docker.errors.DockerException as e:

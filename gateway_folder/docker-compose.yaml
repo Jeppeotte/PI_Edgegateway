@@ -1,0 +1,14 @@
+services:
+  configurator:
+    image: jeppeotte/gateway_configurator:0.0.1
+    container_name: gateway_configurator
+    restart: unless-stopped
+    volumes:
+      - /absolute/path/to/this/folder:/mounted_dir:rw #Put in the directory of the folder where this file is stored
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    environment:
+      HOST_PLATFORM: ${HOST_PLATFORM}
+      HOST_ARCH: ${HOST_ARCH}
+    ports:
+      - "8000:8000"
+    privileged: true

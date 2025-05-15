@@ -7,7 +7,6 @@ from docker.errors import ImageNotFound, APIError, ContainerError
 import logging
 import sys
 import os
-import platform
 
 
 logging.basicConfig(
@@ -21,9 +20,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/add_devices")
 
-#Directory for running locally
-#local_dir = r"C:\Users\jeppe\OneDrive - Aalborg Universitet\Masters\4. Semester\Gateway Configurator"
-#mounted_dir = Path(local_dir)
 #Directory for docker container
 mounted_dir = Path("/mounted_dir")
 
@@ -442,3 +438,23 @@ async def delete_device_service(device_id: str):
         return {"message": f"Device service '{device_id}' was successfully removed. Container was not running"}
     except docker.errors.APIError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/get_container_logs")
+async def get_container_logs(device_id:str):
+    try:
+        # Replace this logic with however you're mapping device_id to container
+        container = client.containers.get(device_id)  # assuming device_id is the container name or ID
+        logs = container.logs(tail=10).decode('utf-8')
+        return {"logs": logs}
+
+    except docker.errors.NotFound:
+        logger.warning(f"Container '{device_id}' not found.")
+        raise HTTPException(status_code=404, detail=f"Container '{device_id}' not found.")
+
+    except docker.errors.APIError as e:
+        logger.error(f"Docker API error: {e}")
+        raise HTTPException(status_code=500, detail="Docker API error while retrieving logs.")
+
+    except Exception as e:
+        logger.exception(f"Unexpected error while retrieving logs: {e}")
+        raise HTTPException(status_code=500, detail="Unexpected error while retrieving logs.")
