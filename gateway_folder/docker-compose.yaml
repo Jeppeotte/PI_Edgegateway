@@ -12,3 +12,12 @@ services:
     ports:
       - "8000:8000"
     privileged: true
+
+  valkey:
+    image: valkey/valkey
+    container_name: messagebus
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data

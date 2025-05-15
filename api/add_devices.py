@@ -89,14 +89,12 @@ async def add_S7_device(serviceconfig: S7CommDeviceServiceConfig):
     #Create the config file for the device service
     try:
         # Define the directory for the device service
-        core_path = mounted_dir.joinpath(f"devices/{serviceconfig.device.protocol_type}")
-        # Check if path exist and create it if not:
-        # Create file path if it does not exist
-        core_path.mkdir(parents=True, exist_ok=True)
-        # Define the file path for metadata.yaml
-        configfile_path = core_path.joinpath(f"{serviceconfig.device.device_id}.yaml")
-
-        configfile_path.resolve()
+        configfile_path = mounted_dir.joinpath(f"devices/{serviceconfig.device.protocol_type}/{serviceconfig.device.device_id}.yaml")
+        # Ensure the parent directories exist
+        configfile_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create the file if it doesn't exist
+        if not configfile_path.exists():
+            configfile_path.touch()
 
         yaml = YAML()
         yaml.preserve_quotes = True
@@ -178,12 +176,12 @@ async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
     #Create the config file for the device service
     try:
         # Define the directory for the device service
-        core_path = mounted_dir.joinpath(f"devices/{serviceconfig.device.protocol_type}")
-        # Check if path exist and create it if not:
-        # Create file path if it does not exist
-        core_path.mkdir(parents=True, exist_ok=True)
-        # Define the file path for metadata.yaml
-        configfile_path = core_path.joinpath(f"{serviceconfig.device.device_id}.yaml")
+        configfile_path = mounted_dir.joinpath(f"devices/{serviceconfig.device.protocol_type}/{serviceconfig.device.device_id}.yaml")
+        # Ensure the parent directories exist
+        configfile_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create the file if it doesn't exist
+        if not configfile_path.exists():
+            configfile_path.touch()
 
         yaml = YAML()
         yaml.preserve_quotes = True

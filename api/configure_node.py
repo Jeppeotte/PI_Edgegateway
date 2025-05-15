@@ -83,12 +83,12 @@ async def configure_node(config: NodeConfig):
     #Configure the metadata on the node which has been added
     try:
         # Define the core directory path for metadata.yaml
-        core_path = mounted_dir.joinpath("core")
-        # Check if path exist and create it if not:
-        # Create the metadata file if it does not exsist
-        core_path.mkdir(parents=True, exist_ok=True)
-        # Define the file path for metadata.yaml
-        metadata_path = core_path.joinpath("metadata.yaml")
+        metadata_path = mounted_dir.joinpath("core/metadata.yaml")
+        # Ensure the parent directories exist
+        metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create the file if it doesn't exist
+        if not metadata_path.exists():
+            metadata_path.touch()
 
         # Load existing YAML
         yaml = YAML()
@@ -135,16 +135,16 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
     try:
         # Define the file path for mqtt_publisher.yaml
         config_path = mounted_dir.joinpath("applications/MQTT/mqtt_publisher.yaml")
+        # Ensure the parent directories exist
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create the file if it doesn't exist
+        if not config_path.exists():
+            config_path.touch()
 
-        # Load existing YAML
+        # Load config file
         yaml = YAML()
         yaml.preserve_quotes = True
         yaml.indent(mapping=2, sequence=4, offset=2)
-
-        if not config_path.exists():
-            # Create file path if it does not exist
-            config_path.mkdir(parents=True, exist_ok=True)
-
         with open(config_path, 'r') as f:
             config = yaml.load(f)
 

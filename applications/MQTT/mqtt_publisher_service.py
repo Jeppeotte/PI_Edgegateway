@@ -3,7 +3,6 @@ import valkey
 import json
 import time
 import yaml
-import argparse
 import logging
 import sys
 from pathlib import Path
