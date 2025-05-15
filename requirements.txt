@@ -11,3 +11,4 @@ wavio==0.0.9
 python-snap7==2.0.2
 pymodbus==3.9.0
 paho-mqtt==2.1.0
+ruamel.yaml==0.18.10

@@ -1,4 +1,4 @@
-python-snap7
-PyYAML
-valkey
-pydantic
+python-snap7==2.0.2
+PyYAML==6.0.2
+valkey==6.1.0
+pydantic==2.11.3

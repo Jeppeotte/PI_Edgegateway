@@ -1,7 +1,7 @@
-wavio
-sounddevice
-valkey
-PyYAML
-numpy
-pydantic
-httpx
+wavio==0.0.9
+sounddevice==0.5.1
+PyYAML==6.0.2
+valkey==6.1.0
+numpy==2.2.5
+pydantic==2.11.3
+httpx==0.28.1

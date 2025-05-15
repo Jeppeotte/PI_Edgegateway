@@ -1,5 +1,5 @@
-fastapi
-ruamel.yaml
-pydantic
-uvicorn
-docker
+uvicorn==0.34.2
+fastapi==0.115.12
+docker==7.1.0
+pydantic==2.11.3
+ruamel.yaml==0.18.10
