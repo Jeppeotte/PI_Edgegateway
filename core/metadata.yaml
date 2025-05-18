@@ -1,11 +1,16 @@
 identity:
   group_id: group_1
-  node_id: lenovo_node
+  node_id: Lenovo_node_aau
   description: test
-  ip: 192.168.0.238
+  ip: 172.20.1.150
 
 services:
   device_services:
+    - device_id: plc_device
+      protocol_type: S7Comm
+      config: devices/S7Comm/plc_device.yaml
+      tested: false
+      activated: true
   application_services:
     - service: MQTT
       description: MQTT publisher

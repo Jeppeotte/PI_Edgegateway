@@ -1,10 +1,12 @@
-FROM python:3.13
+FROM python:3.13-slim
 
 # Add your Python script
-ADD mqtt_publisher_service.py .
+COPY applications/MQTT/mqtt_publisher.yaml .
+
+COPY applications/MQTT/mqtt_publisher_service.py .
 
 # Add requirements file
-ADD requirements.txt .
+COPY applications/MQTT/requirements.txt .
 
 # Install requirements
 RUN pip install -r requirements.txt

@@ -128,38 +128,56 @@ class PLCReader:
         self.process_event = threading.Event()
         self.trigger_event = threading.Event()
         self.stop_event = threading.Event()
+        self.DDEATH_topic = f"spBv1.0/{device_config.device.group_id}/DDEATH/{device_config.device.node_id}/{device_config.device.device_id}"
+        self.DBIRTH_topic = f"spBv1.0/{device_config.device.group_id}/DBIRTH/{device_config.device.node_id}/{device_config.device.device_id}"
         self.state_topic = f"spBv1.0/{device_config.device.group_id}/STATE/{device_config.device.node_id}/{device_config.device.device_id}"
         self.data_topic = f"spBv1.0/{device_config.device.group_id}/DDATA/{device_config.device.node_id}/{device_config.device.device_id}"
         signal.signal(signal.SIGTERM, self.handle_sigterm)
-        logger.info(f"Starting up the S7Comm service for device: {device_config.device.device_id}")
+        logging.info(f"Starting up the S7Comm service for device: {device_config.device.device_id}")
+        # Publish that the device is turning on
+        self.valkey_client.publish(self.DBIRTH_topic, json.dumps({"time": time.time(),
+                                                                  "status": {"connected": "True"}
+                                                                  }))
+        logging.info(f"Published DBIRTH message to topic: {self.DBIRTH_topic}")
 
     def monitor_process(self):
         # Determine if the "main" process has begun, so that the script do not spam the PLC with requests when it is idle
         trigger_source = self.process_trigger_config.source
-        db_number = trigger_source.get("db_number")
+        db_number = int(trigger_source.get("db_number"))
         logger.info(f"Process trigger db_number: {db_number}")
-        byte_offset = trigger_source.get("byte_offset")
+        byte_offset = int(trigger_source.get("byte_offset"))
         logger.info(f"Process trigger byte_offset: {byte_offset}")
-        bit_offset = trigger_source.get("bit_offset")
+        bit_offset = int(trigger_source.get("bit_offset"))
         logger.info(f"Process trigger byte_offset: {bit_offset}")
+        bool_index = 6
         trigger_condition = self.process_trigger_config.condition
         logger.info(f"Process trigger condition: {trigger_condition}")
-        poll_timer = self.polling_intervals.get("process_trigger")
+        poll_timer = getattr(self.polling_intervals, "process_trigger", 1.0)
+        logger.info(f"Checking the status of the process every: {poll_timer}s")
         previous_value = None
 
         while not self.stop_event.is_set():
             # Read state of PLC
-            with self.client_lock:
-                reading = self.client.db_read(db_number, byte_offset, 1)
+            try:
+                with self.client_lock:
+                    reading = self.client.read_area(area=snap7.type.Areas.MK,db_number=db_number,start=byte_offset,size=1)
 
-            trigger_value = snap7.util.get_bool(reading, 0, 0)
-            logging.info(f"The state of the process is the following: {trigger_value}")
+            except Exception as e:
+                logging.error(f"Could not connect to the client with the following exception: {e}")
+                logging.info("Restarting the container")
+                self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
+                                                                          "status": {"connected": "False"}
+                                                                          }))
+                self.stop_event.set()
+                sys.exit(1)
+
+            trigger_value = snap7.util.get_bool(reading, 0, bool_index)
 
             # Publish initial value or changed value
             if previous_value is None or trigger_value != previous_value:
-                logging.info(f"Sending message to the following topic: {self.state_topic}")
+                logging.info(f"The state of the process: {trigger_value}")
                 self.valkey_client.publish(self.state_topic, json.dumps({"time": time.time(),
-                                                                    "process_trigger": str(trigger_value)
+                                                                         "status": {"process_trigger": str(trigger_value)}
                                                                    }))
                 previous_value = trigger_value
             # print(f"This is the trigger state:{self.trigger_state}")
@@ -172,30 +190,46 @@ class PLCReader:
             time.sleep(poll_timer)
 
     def monitor_trigger(self):
-        db_number = self.data_trigger_config.db_number
-        byte_offset = self.data_trigger_config.byte_offset
-        trigger_data_type = "Bool"
-        trigger_condition = self.data_trigger_config.condition
-        trigger_state = trigger_condition
-        poll_timer = self.polling_intervals.get("data_trigger")
+        trigger_source = self.data_trigger_config.source
+        db_number = int(trigger_source.get("db_number"))
+        logger.info(f"Data trigger db_number: {db_number}")
+        byte_offset = int(trigger_source.get("byte_offset"))
+        logger.info(f"Data trigger byte_offset: {byte_offset}")
+        bit_offset = int(trigger_source.get("bit_offset"))
+        logger.info(f"Data trigger byte_offset: {bit_offset}")
+        trigger_condition = self.process_trigger_config.condition
+        logger.info(f"Data trigger condition: {trigger_condition}")
+        poll_timer = getattr(self.polling_intervals, "data_trigger", 1.0)
+        logger.info(f"Checking if to poll data every: {poll_timer}s")
+
         previous_value = None
 
         while not self.stop_event.is_set():
-            self.process_event.wait()
             # Read trigger data from PLC
-            with self.client_lock:
-                reading = self.client.db_read(db_number, byte_offset, 1)
+            try:
+                with self.client_lock:
+                    reading = self.client.db_read(db_number, byte_offset, 1)
 
-            sample_time = time.time()
+            except Exception as e:
+                logging.error(f"Could not connect to the client with the following exception: {e}")
+                logging.info("Restarting the container")
+                self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
+                                                                          "status": {"connected": "False"}
+                                                                          }))
+                self.stop_event.set()
+                sys.exit(1)
+
             trigger_value = snap7.util.get_bool(reading, 0, 0)
-            logging.info(f"Sampling trigger, with the following reading: {trigger_value}")
 
             # Publish initial value or changed value
             if previous_value is None or trigger_value != previous_value:
+                logging.info(f"Data trigger state: {trigger_value}")
                 self.valkey_client.publish(self.state_topic, json.dumps({"time": time.time(),
-                                                                         "data_trigger": trigger_value
+                                                                         "status": {"data_trigger": str(trigger_value)}
                                                                          }))
                 previous_value = trigger_value
+
+            self.process_event.wait()
             #print(f"This is the trigger state:{self.trigger_state}")
             if trigger_value != trigger_condition:
                 trigger_state = trigger_value
@@ -224,10 +258,19 @@ class PLCReader:
             self.trigger_event.wait()  # Block until trigger is True
 
             # Read main data from PLC
-            with self.client_lock:
-                reading = self.client.db_read(data_db_number, data_byte_offset, data_read_size)
-            sample_time = time.time()
+            try:
+                with self.client_lock:
+                    reading = self.client.db_read(data_db_number, data_byte_offset, data_read_size)
+            except Exception as e:
+                logging.error(f"Could not connect to the client with the following exception: {e}")
+                logging.info("Restarting the container")
+                self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
+                                                                          "status": {"connected": "False"}
+                                                                          }))
+                self.stop_event.set()
+                sys.exit(1)
 
+            sample_time = time.time()
             # Value extraction
             current_values = [snap7.util.get_real(reading, offset)
                               for offset in adjusted_variable_byte_offsets]
@@ -266,6 +309,11 @@ class PLCReader:
         self.process_event.clear()
         # Stop the data sampling
         self.trigger_event.clear()
+        # Publish that the device is turning off
+        self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
+                                                                 "status": {"connected": "False"}
+                                                                 }))
+        logger.info(f"Published DDEATH message to topic: {self.DDEATH_topic}")
         # give threads a moment to stop
         time.sleep(4)
         sys.exit(0)

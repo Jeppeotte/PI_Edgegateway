@@ -35,7 +35,7 @@ def get_node_identity():
 def mqtt_connection(identity):
     try:
         #Path to mqtt config file
-        mqtt_configfile_path = mounted_dir.joinpath("applications/MQTT/mqtt_publisher.yaml")
+        mqtt_configfile_path = mounted_dir.joinpath("applications/MQTT/MQTT_config.yaml")
 
         if not mqtt_configfile_path.exists():
             logger.error(f"Cant find the config file for the mqtt publisher under path: {mqtt_configfile_path}")
@@ -66,7 +66,7 @@ def mqtt_connection(identity):
     # Setting the last will, if connection drops
     mqtt_client.will_set(
         topic=DDEATHTOPIC,
-        payload=json.dumps({"status": "OFFLINE"}),
+        payload=json.dumps({"status": {"connected": "False"}}),
         qos=0
     )
 
@@ -88,7 +88,7 @@ def mqtt_connection(identity):
     mqtt_client.publish(
         DBIRTHTOPIC,
         payload=json.dumps({"timestamp": int(time.time()),
-                            "status": "ONLINE"}),
+                            "status": {"connected": "True"}}),
         qos=0
     )
 
@@ -111,16 +111,12 @@ def receive_and_publish_messages(valkey_client, mqtt_client):
 
     pubsub = valkey_client.pubsub()
 
-    # Subscribes to all device data from the different device_ids which the node might have
-    pubsub.subscribe(["spBv1.0/+/DDATA/#",
-                      "spBv1.0/+/STATE/#",
-                      "spBv1.0/+/DBIRTH/#",
-                      "spBv1.0/+/DDEATH/#",
-                      "spBv1.0/+/AUDIODATA/#",
-                      ])
+    # Subscribes to all topics
+    # Change when it might be noisy
+    pubsub.psubscribe("*")
 
     for message in pubsub.listen():
-        if message['type'] == 'message':
+        if message['type'] == 'pmessage':
             mqtt_client.publish(message['channel'].decode('utf-8'), message['data'].decode('utf-8'))
     return
 

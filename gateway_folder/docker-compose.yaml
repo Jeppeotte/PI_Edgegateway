@@ -1,6 +1,6 @@
 services:
   configurator:
-    image: jeppeotte/gateway_configurator:0.0.1
+    image: jeppeotte/gateway_configurator:latest
     container_name: gateway_configurator
     restart: unless-stopped
     volumes:
@@ -19,5 +19,3 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
-    volumes:
-      - valkey_data:/data

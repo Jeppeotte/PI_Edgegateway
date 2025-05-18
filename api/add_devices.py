@@ -136,13 +136,13 @@ async def add_S7_device(serviceconfig: S7CommDeviceServiceConfig):
                 yaml.dump(metadata, f)
 
             # Pull container if it is not already on the device
-            client.images.pull("jeppeotte/s7comm_device_service", tag="0.0.4")
+            client.images.pull("jeppeotte/s7comm_device_service", tag="latest")
 
             # Start the container
             try:
                 container = client.containers.run(
                     name=f"{serviceconfig.device.device_id}",
-                    image="jeppeotte/s7comm_device_service:0.0.4",
+                    image="jeppeotte/s7comm_device_service:latest",
                     volumes={
                         host_mounted_dir: {"bind": "/mounted_dir", "mode": "rw"},
                     },
@@ -223,13 +223,12 @@ async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
                 yaml.dump(metadata, f)
 
             # Get information about the backend for sending data:
-
             # Define the path to the mqtT_publisher.yaml files to add the service inside of that
-            mqtt_path = mounted_dir.joinpath("applications/MQTT/mqtt_publisher.yaml")
+            mqtt_path = mounted_dir.joinpath("applications/MQTT/MQTT_config.yaml")
 
             if not mqtt_path.exists():
                 raise HTTPException(status_code=500,
-                                    detail=f"mqtt_publisher.yaml does not exist in the following path {mqtt_path}")
+                                    detail=f"MQTT config file does not exist in the following path {mqtt_path}")
 
             with open(mqtt_path, 'r') as f:
                 mqtt_config = yaml.load(f)
@@ -237,7 +236,7 @@ async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
             backend_ip = mqtt_config["broker"].get("ip","")
             # Pull container if it is not already on the device
             try:
-                client.images.pull("jeppeotte/usb_microphone_service", tag="0.0.1")
+                client.images.pull("jeppeotte/usb_microphone_service", tag="latest")
             except ImageNotFound:
                 raise HTTPException(status_code=500,
                                     detail="Docker image not found: jeppeotte/usb_microphone_service:0.0.1")
@@ -253,7 +252,7 @@ async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
             try:
                 container = client.containers.run(
                     name=f"{serviceconfig.device.device_id}",
-                    image="jeppeotte/usb_microphone_service:0.0.1",
+                    image="jeppeotte/usb_microphone_service:latest",
                     volumes={
                         host_mounted_dir: {"bind": "/mounted_dir", "mode": "rw"},
                     },

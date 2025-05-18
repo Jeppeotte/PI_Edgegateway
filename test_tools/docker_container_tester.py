@@ -6,10 +6,10 @@ import platform
 client = docker.from_env()
 
 # Define the path to the metadata.yaml files to add the service inside of that
-mounted_dir = Path(r"/")
+mounted_dir = Path(r"C:\Users\jeppe\OneDrive - Aalborg Universitet\Masters\4. Semester\Gateway Configurator\gateway_folder")
 
 try:
-    client.images.pull(repository="jeppeotte/gateway_configurator", tag="0.0.1")
+    client.images.pull(repository="jeppeotte/gateway_configurator", tag="latest")
 except docker.errors.APIError as e:
     print(f"Error: {e.explanation}")
     exit()
@@ -24,7 +24,7 @@ print(host_arch)
 
 container = client.containers.run(
             name="configurator",
-            image="jeppeotte/gateway_configurator:0.0.1",
+            image="jeppeotte/gateway_configurator:latest",
             volumes={
                 mounted_dir: {"bind": "/mounted_dir", "mode": "rw"},
                 "/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},

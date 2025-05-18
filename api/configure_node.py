@@ -2,9 +2,18 @@ from fastapi import APIRouter, HTTPException
 from ruamel.yaml import YAML
 from pathlib import Path
 from pydantic import BaseModel
-from models.devicemodels import ApplicationService
 import docker
 import os
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+logger = logging.getLogger(__name__)
 
 # Define the structure for configuring the edge node
 class NodeConfig(BaseModel):
@@ -19,14 +28,13 @@ class MQTTConfig(BaseModel):
 
 router = APIRouter(prefix="/api/configure_node")
 
-#Directory for running locally
-#local_dir = r"C:\Users\jeppe\OneDrive - Aalborg Universitet\Masters\4. Semester\Gateway Configurator"
-#mounted_dir = Path(local_dir)
 #Directory for docker container
 mounted_dir = Path("/mounted_dir")
 
 client = docker.from_env()
 
+host_platform = os.getenv("HOST_PLATFORM", "").lower()
+host_arch = os.getenv("HOST_ARCH", "").lower()
 
 def get_current_container_id():
     """Get current container ID in a cross-platform way"""
@@ -80,61 +88,91 @@ except docker.errors.APIError as e:
 
 @router.post("/configure_node")# API for edge node
 async def configure_node(config: NodeConfig):
-    #Configure the metadata on the node which has been added
+    # Configure the metadata on the node which has been added
     try:
         # Define the core directory path for metadata.yaml
         metadata_path = mounted_dir.joinpath("core/metadata.yaml")
         # Ensure the parent directories exist
         metadata_path.parent.mkdir(parents=True, exist_ok=True)
-        # Create the file if it doesn't exist
-        if not metadata_path.exists():
-            metadata_path.touch()
 
-        # Load existing YAML
+        # Initialize YAML handler
         yaml = YAML()
         yaml.preserve_quotes = True
         yaml.indent(mapping=2, sequence=4, offset=2)
 
+        # Default metadata structure
+        default_metadata = {
+            "identity": {
+                "group_id": config.group_id,
+                "node_id": config.node_id,
+                "description": config.description or "",
+                "ip": config.ip
+            },
+            "services": {
+                "device_services": [],
+                "application_services": []
+            }
+        }
+
+        # Create or load existing metadata
         if not metadata_path.exists():
-            raise HTTPException(status_code=500, detail=f"metadata.yaml does not exist in the following path {metadata_path}")
+            metadata = default_metadata
+        else:
+            with open(metadata_path, 'r') as f:
+                metadata = yaml.load(f) or default_metadata
 
-        with open(metadata_path, 'r') as f:
-            metadata = yaml.load(f)
+            # Update identity
+            metadata["identity"] = {
+                "group_id": config.group_id,
+                "node_id": config.node_id,
+                "description": config.description or metadata["identity"].get("description", ""),
+                "ip": config.ip
+            }
 
-        # Update identity
-        metadata["identity"]["group_id"] = config.group_id
-        metadata["identity"]["node_id"] = config.node_id
-        metadata["identity"]["description"] = config.description
-        metadata["identity"]["ip"] = config.ip
+        # Handle application services
+        if config.app_services:
+            # Ensure application_services exists
+            if "application_services" not in metadata["services"]:
+                metadata["services"]["application_services"] = []
 
-        # Enable application services based on connections
-        app_services = metadata["services"].get("application_services", [])
-        for service in config.app_services:
-            matched = False
-            for application in app_services:
-                if application.get("service") == service:
-                    application["enabled"] = True
-                    matched = True
-                    print(f"Enabled service: {service}")
-                    break
+            app_services = metadata["services"]["application_services"]
 
-            if not matched:
-                raise HTTPException(status_code=400, detail=f"Service '{service}' not found in metadata.")
+            # Enable requested services
+            for service_name in config.app_services:
+                service_found = False
+                for service in app_services:
+                    if service.get("service") == service_name:
+                        service["enabled"] = True
+                        service_found = True
+                        break
 
-        # Save updated YAML back to file
+                if not service_found:
+                    # Create new service with default values if not found
+                    app_services.append({
+                        "service": service_name,
+                        "description": f"Auto-created service {service_name}",
+                        "config": f"applications/{service_name}/{service_name}_config.yaml",  # Default empty config
+                        "enabled": True
+                    })
+
+        # Save metadata
         with open(metadata_path, 'w') as f:
             yaml.dump(metadata, f)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"status": "success", "message": "Node configured successfully"}
 
-    return
+    except Exception as e:
+        logger.error(f"Error configuring node: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Configuration failed: {str(e)}")
 
 @router.post("/MQTT")
 async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
+    if host_arch not in ["x86_64", "arm64", "amd64"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported host architecture: {host_arch}")
+
     try:
         # Define the file path for mqtt_publisher.yaml
-        config_path = mounted_dir.joinpath("applications/MQTT/mqtt_publisher.yaml")
+        config_path = mounted_dir.joinpath("applications/MQTT/MQTT_config.yaml")
         # Ensure the parent directories exist
         config_path.parent.mkdir(parents=True, exist_ok=True)
         # Create the file if it doesn't exist
@@ -145,23 +183,54 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
         yaml = YAML()
         yaml.preserve_quotes = True
         yaml.indent(mapping=2, sequence=4, offset=2)
-        with open(config_path, 'r') as f:
-            config = yaml.load(f)
 
-        config["broker"]["ip"] = mqtt_config.ip
+        # Default configuration structure
+        default_config = {
+            "broker": {
+                "ip": mqtt_config.ip,
+                "port": 1883}}
+
+        # Load existing config or create new one
+        if not config_path.exists():
+            config = default_config
+        else:
+            with open(config_path, 'r') as f:
+                config = yaml.load(f) or default_config
+
+            # Ensure basic structure exists
+            if "broker" not in config:
+                config["broker"] = default_config["broker"]
+
+            # Update broker IP (and set default port if not specified)
+            config["broker"]["ip"] = mqtt_config.ip
+            config["broker"].setdefault("port", 1883)
 
         # Save updated YAML back to file
         with open(config_path, 'w') as f:
             yaml.dump(config, f)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not configure MQTT_config file at path {config_path}, with error {e}")
+        logger.error(f"Error updating MQTT config: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"MQTT configuration failed: {str(e)}")
+
+    # First ensure that there is no MQTT container running
+    try:
+        container = client.containers.get("MQTT")
+        container.remove(force=True)
+        logger.info(f"Stopped and removed an already running MQTT container")
+    except docker.errors.NotFound:
+        logger.info(f"No MQTT container found will proceed as planned")
+
+    # Pull container if it is not already on the device
+    client.images.pull("jeppeotte/mqtt_publisher", tag="latest")
 
     # If no errors have been detected and the config file has been successfully edited start the mqtt_publisher
     try:
         container = client.containers.run(
             name="MQTT",
-            image="mqtt_publisher:0.1.1",
+            image="jeppeotte/mqtt_publisher:latest",
             volumes={
                 host_mounted_dir: {"bind": "/mounted_dir", "mode": "rw"},
             },
@@ -171,6 +240,7 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
         )
         return "MQTT application has been launched"
     except docker.errors.DockerException as e:
+        logger.error(f"There was an error with launching the MQTT docker container {e}")
         raise HTTPException(status_code=500, detail=f"Docker error: {str(e)}")
 
 @router.post("/delete_node")
