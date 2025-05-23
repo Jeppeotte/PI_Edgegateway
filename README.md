@@ -103,9 +103,6 @@ After setting up the `docker-compose.yaml` file, you can now launch the software
 If everything is set up correctly, you should see the containers for your edge gateway software running.
 
 
-Got it! Here is **Step 4 with the entire persistent setup part fully inside the Markdown code block**, so you can copy-paste it all directly:
-
-````markdown
 ### 4. Set a Static IP Address for Ethernet Communication
 
 If you're connecting your edge gateway directly to a PLC or sensor via Ethernet, it's important to assign a **static IP address** to ensure reliable communication.
