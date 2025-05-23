@@ -23,7 +23,8 @@ router = APIRouter(prefix="/api/add_devices")
 #Directory for docker container
 mounted_dir = Path("/mounted_dir")
 
-client = docker.from_env()
+
+client = docker.DockerClient(base_url='unix://var/run/docker.sock', timeout=180)
 
 def get_current_container_id():
     """Get current container ID in a cross-platform way"""
@@ -223,7 +224,7 @@ async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
                 yaml.dump(metadata, f)
 
             # Get information about the backend for sending data:
-            # Define the path to the mqtT_publisher.yaml files to add the service inside of that
+            # Define the path to the MQTT_config.yaml files to add the service inside of that
             mqtt_path = mounted_dir.joinpath("applications/MQTT/MQTT_config.yaml")
 
             if not mqtt_path.exists():

@@ -171,7 +171,7 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
         raise HTTPException(status_code=400, detail=f"Unsupported host architecture: {host_arch}")
 
     try:
-        # Define the file path for mqtt_publisher.yaml
+        # Define the file path for MQTT_config.yaml
         config_path = mounted_dir.joinpath("applications/MQTT/MQTT_config.yaml")
         # Ensure the parent directories exist
         config_path.parent.mkdir(parents=True, exist_ok=True)

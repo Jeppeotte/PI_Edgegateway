@@ -138,7 +138,7 @@ class PLCReader:
         self.valkey_client.publish(self.DBIRTH_topic, json.dumps({"time": time.time(),
                                                                   "status": {"connected": "True"}
                                                                   }))
-        logging.info(f"Published DBIRTH message to topic: {self.DBIRTH_topic}")
+        logger.info(f"Starting up the S7Comm service for device: {device_config.device.device_id}")
 
     def monitor_process(self):
         # Determine if the "main" process has begun, so that the script do not spam the PLC with requests when it is idle

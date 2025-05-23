@@ -98,9 +98,15 @@ class PLCReader:
         self.valkey_client = valkey_client
         self.trigger_event = threading.Event()
         self.stop_event = threading.Event()
+        self.DDEATH_topic = f"spBv1.0/{device_config.device.group_id}/DDEATH/{device_config.device.node_id}/{device_config.device.device_id}"
+        self.DBIRTH_topic = f"spBv1.0/{device_config.device.group_id}/DBIRTH/{device_config.device.node_id}/{device_config.device.device_id}"
         self.state_topic = f"spBv1.0/{device_config.device.group_id}/STATE/{device_config.device.node_id}/{device_config.device.device_id}"
         self.data_topic = f"spBv1.0/{device_config.device.group_id}/AUDIODATA/{device_config.device.node_id}/{device_config.device.device_id}"
         signal.signal(signal.SIGTERM, self.handle_sigterm)
+        # Publish that the device is turning on
+        self.valkey_client.publish(self.DBIRTH_topic, json.dumps({"time": time.time(),
+                                                                  "status": {"connected": "True"}
+                                                                  }))
         logger.info(f"Starting up the USB microphone service for device: {device_config.device.device_id}")
 
     def monitor_trigger(self):
@@ -113,28 +119,33 @@ class PLCReader:
         # Initialise the subscription to a topic
         pubsub = valkey_client.pubsub()
         # Subscribes to source where trigger condition will be posted
+        logger.info(f"This is the source of the trigger: {trigger_source}")
         pubsub.subscribe(trigger_source)
         while not self.stop_event.is_set():
             logger.info("Waiting for the trigger")
             for message in pubsub.listen():
                 if message['type'] == 'message':
                     message_data = json.loads(message['data'].decode('utf-8'))
-                    trigger_value = message_data["data_trigger"]
-                    logger.info(f"Received sampling trigger")
+                    #As there will come multiple messages on this channel we need to ensure that the message
+                    # Is a data trigger message, and will return none if it isnt
+                    trigger_value = message_data.get("status", {}).get("data_trigger", None)
+                    if trigger_value:
+                        logger.info(f"Received sampling trigger")
 
-                    # Publish initial value or changed value
-                    if previous_value is None or trigger_value != previous_value:
-                        self.valkey_client.publish(self.state_topic, json.dumps({"time": time.time(),
-                                                                                 "data_trigger": trigger_value
-                                                                                 }))
-                        previous_value = trigger_value
-                    logger.info(f"Trigger value: {trigger_value}")
-                    if trigger_value == trigger_condition:
-                        logger.info("Trigger event set")
-                        self.trigger_event.set() # Set event if the trigger_value is = condition
-                    else:
-                        logger.info("Trigger event cleared")
-                        self.trigger_event.clear() # Clear event when trigger_value is != condition
+                        # Publish initial value or changed value
+                        if previous_value is None or trigger_value != previous_value:
+                            logger.info(f"Data trigger state: {trigger_value}")
+                            self.valkey_client.publish(self.state_topic, json.dumps({"time": time.time(),
+                                                                                     "status": {
+                                                                                         "data_trigger": str(trigger_value)}
+                                                                                     }))
+                            previous_value = trigger_value
+                        if trigger_value == trigger_condition:
+                            logger.info("Trigger event set")
+                            self.trigger_event.set() # Set event if the trigger_value is = condition
+                        else:
+                            logger.info("Trigger event cleared")
+                            self.trigger_event.clear() # Clear event when trigger_value is != condition
 
     def sample_microphone_data(self):
         name = self.USB_device.name
@@ -173,8 +184,11 @@ class PLCReader:
 
             except sd.PortAudioError as e:
                 if "Invalid sample rate" in str(e):
-                    logger.error(f"Invalid sample rate: {samplerate}. Try using 48000 or query the device's supported rates.")
-                    break
+                    logger.error(f"Invalid sample rate: {samplerate}")
+                    #Exit thread
+                    self.stop_event.set()
+                    sys.exit(1)
+
                 else:
                     logger.error("PortAudio error during input stream setup.")
                     devices = sd.query_devices()
@@ -182,10 +196,13 @@ class PLCReader:
                         logger.info("No audio devices ws found")
                     else:
                         logger.info(f"The following audio devices are available: {devices}")
-                    break
+                    self.stop_event.set()
+                    sys.exit(1)
+
             except Exception as e:
-                logger.exception("Unexpected error during audio sampling")
-                break
+                logger.error("Unexpected error during audio sampling")
+                self.stop_event.set()
+                sys.exit(1)
 
             if audio_buffer:
                 audio_buffer = np.concatenate(audio_buffer)
@@ -262,6 +279,13 @@ class PLCReader:
         # Keep the main program running
         while not self.stop_event.is_set():
             time.sleep(1)
+
+        #Publishing that the service is shutting down
+        self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
+                                                                  "status": {"connected": "False"}
+                                                                  }))
+        logger.info("Shutting down")
+        sys.exit(1)
 
 
 
