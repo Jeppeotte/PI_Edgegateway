@@ -1,4 +1,4 @@
-# Edge Gateway Software – Master's Thesis, Aalborg University
+# Edge Gateway Software
 
 This repository was created as part of a Master’s Thesis project at Aalborg University. Its purpose is to simplify data acquisition at the edge by installing this software on an edge gateway device.
 
