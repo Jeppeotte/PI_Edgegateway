@@ -62,7 +62,7 @@ To prepare the environment for running the software, follow these steps:
 
     ```yaml
     services:
-      your_service_name:
+      configurator:
         volumes:
           - /absolute/path/to/this/folder:/mounted_dir:rw
           - /var/run/docker.sock:/var/run/docker.sock:rw
