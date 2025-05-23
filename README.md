@@ -133,13 +133,10 @@ Add the following lines at the end of the file:
 ```conf
 interface eth0
 static ip_address=172.20.1.153/24
-static routers=172.20.1.1
-static domain_name_servers=8.8.8.8
 ```
 
 * Replace `172.20.1.153` with the desired static IP address.
-* Replace `172.20.1.1` with your gateway/router IP address. If directly connected to a device with no router, you may omit or comment out this line.
-* Replace or remove the DNS server (`8.8.8.8`) as needed.
+* `/24` means the subnet mask is `255.255.255.0`.
 
 Save and exit the editor (`Ctrl + X`, then `Y`, then `Enter`).
 
