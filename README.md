@@ -12,16 +12,16 @@ For instructions on how to use and connect different services/devices to this sy
 
 ---
 
-## 🧰 Prerequisites
+## Prerequisites
 
 This setup guide is written for a **Raspberry Pi 5 (8 GB RAM)** running **Raspberry Pi OS 64-bit**, released on **2025-05-13**.  
 However, the software should work on any Linux system with either **amd64** or **arm64** architecture and sufficient resources.
 
-> ⚠️ No minimum system resource benchmarks have been conducted yet.
+> No minimum system resource benchmarks have been conducted yet.
 
 ---
 
-## ⚙️ Installation Guide
+## Installation Guide
 
 ### 1. Install Docker
 
