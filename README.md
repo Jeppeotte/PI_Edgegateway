@@ -2,7 +2,7 @@
 
 This repository was created as part of a Master’s Thesis project at Aalborg University. Its purpose is to simplify data acquisition at the edge by installing this software on an edge gateway device.
 
-> **Note**: This is **Repository 1 of 2**. This repository contains the **software** that should be installed on an edge gateway to sample data from industrial processes—either through PLCs or directly connected sensors.
+> **Note**: This is **Repository 1 of 2**. This repository contains the **software** that should be installed on an edge gateway to sample data from industrial processes—either through PLCs or directly connected sensors. The second repository can be found here: [Repository 2](https://github.com/Jeppeotte/Infrastrcuture_manager/tree/master).
 
 Currently, the software supports:
 - **Siemens PLCs**
