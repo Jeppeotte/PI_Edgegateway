@@ -4,11 +4,11 @@ services:
     container_name: gateway_configurator
     restart: unless-stopped
     volumes:
-      - /absolute/path/to/this/folder:/mounted_dir:rw #Put in the directory of the folder where this file is stored
+      - ./:/mounted_dir:rw
       - /var/run/docker.sock:/var/run/docker.sock:rw
     environment:
-      HOST_PLATFORM: #Add the operating system of the device
-      HOST_ARCH:  #Add the chip architecture of the device
+      HOST_PLATFORM: #Add the operating system of the device eg. linux, windows or mac
+      HOST_ARCH:  #Add the chip architecture of the device eg. amd64 or arm64
     ports:
       - "8000:8000"
     privileged: true
