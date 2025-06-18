@@ -143,13 +143,16 @@ class PLCReader:
     def monitor_process(self):
         # Determine if the "main" process has begun, so that the script do not spam the PLC with requests when it is idle
         trigger_source = self.process_trigger_config.source
+        variable_type = trigger_source.get("variable_type")
+        logger.info(f"Process trigger variable_type: {variable_type}")
         db_number = int(trigger_source.get("db_number"))
         logger.info(f"Process trigger db_number: {db_number}")
         byte_offset = int(trigger_source.get("byte_offset"))
         logger.info(f"Process trigger byte_offset: {byte_offset}")
         bit_offset = int(trigger_source.get("bit_offset"))
-        logger.info(f"Process trigger byte_offset: {bit_offset}")
-        bool_index = 6
+        logger.info(f"Process trigger bite_offset: {bit_offset}")
+        bool_index = int(trigger_source.get("bool_index"))
+        logger.info(f"Process trigger bool_index: {bool_index}")
         trigger_condition = self.process_trigger_config.condition
         logger.info(f"Process trigger condition: {trigger_condition}")
         poll_timer = getattr(self.polling_intervals, "process_trigger", 1.0)
@@ -160,18 +163,32 @@ class PLCReader:
             # Read state of PLC
             try:
                 with self.client_lock:
-                    reading = self.client.read_area(area=snap7.type.Areas.MK,db_number=db_number,start=byte_offset,size=1)
+                    if variable_type == "Memory bit":
+                        # Read from M area
+                        reading = self.client.read_area(
+                            area=snap7.type.Areas.MK, db_number=0, start=byte_offset, size=1
+                        )
+                        trigger_value = snap7.util.get_bool(reading, 0, bool_index)
+
+                    elif variable_type == "Boolean variable":
+                        # Read from DB area
+                        reading = self.client.read_area(
+                            area=snap7.type.Areas.DB, db_number=db_number, start=byte_offset, size=1
+                        )
+                        trigger_value = snap7.util.get_bool(reading, 0, bit_offset)
+
+                    else:
+                        raise ValueError(f"Unsupported variable_type: {variable_type}")
 
             except Exception as e:
                 logging.error(f"Could not connect to the client with the following exception: {e}")
                 logging.info("Restarting the container")
-                self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
-                                                                          "status": {"connected": "False"}
-                                                                          }))
+                self.valkey_client.publish(self.DDEATH_topic, json.dumps({
+                    "time": time.time(),
+                    "status": {"connected": "False"}
+                }))
                 self.stop_event.set()
                 sys.exit(1)
-
-            trigger_value = snap7.util.get_bool(reading, 0, bool_index)
 
             # Publish initial value or changed value
             if previous_value is None or trigger_value != previous_value:
@@ -350,6 +367,13 @@ class PLCReader:
         # Keep the main program running
         while not self.stop_event.is_set():
             time.sleep(1)
+
+        # Publishing that the service is shutting down
+        self.valkey_client.publish(self.DDEATH_topic, json.dumps({"time": time.time(),
+                                                                  "status": {"connected": "False"}
+                                                                  }))
+        logger.info("Shutting down")
+        sys.exit(1)
 
 
 # Get configuration from config file

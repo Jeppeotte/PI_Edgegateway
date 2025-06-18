@@ -18,7 +18,7 @@ def valkey_connection(retries=3, delay=5):
     attempt = 0
     while attempt < retries:
         try:
-            valkey_client = valkey.Valkey(host="host.docker.internal", port=6379)
+            valkey_client = valkey.Valkey(host="localhost", port=6379)
 
             # Test connection
             if valkey_client.ping():
@@ -45,12 +45,12 @@ if __name__ == "__main__":
 
     while True:
         logger.info("Publishing data_trigger: True")
-        valkey_client.publish(state_topic, json.dumps({"time": time.time(),
-                                                            "data_trigger": "True"
+        valkey_client.publish(state_topic, json.dumps({"timestamp": time.time(),
+                                                        "status": {"data_trigger": "True"}
                                                             }))
         time.sleep(5)
         logger.info("Publishing data_trigger: False")
         valkey_client.publish(state_topic, json.dumps({"time": time.time(),
-                                                       "data_trigger": "False"
+                                                       "status": {"data_trigger": "False"}
                                                        }))
-        time.sleep(10)
+        time.sleep(5)

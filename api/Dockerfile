@@ -1,5 +1,9 @@
 FROM python:3.13-slim
 
+RUN apt-get update && \
+    apt-get install -y libportaudio2 alsa-utils && \
+    rm -rf /var/lib/apt/lists/*
+
 # Add model dependencies
 COPY models/devicemodels.py ./models/devicemodels.py
 

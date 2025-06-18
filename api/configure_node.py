@@ -223,10 +223,7 @@ async def configure_and_start_mqtt(mqtt_config: MQTTConfig):
     except docker.errors.NotFound:
         logger.info(f"No MQTT container found will proceed as planned")
 
-    # Pull container if it is not already on the device
-    client.images.pull("jeppeotte/mqtt_publisher", tag="latest")
-
-    # If no errors have been detected and the config file has been successfully edited start the mqtt_publisher
+        #Start the mqtt_publisher application
     try:
         container = client.containers.run(
             name="MQTT",

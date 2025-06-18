@@ -4,8 +4,9 @@ services:
     container_name: gateway_configurator
     restart: unless-stopped
     volumes:
-      - /absolute/path/to/this/folder:/mounted_dir:rw #Put in the directory of the folder where this file is stored
+      - ./:/mounted_dir:rw
       - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /dev:/dev
     environment:
       HOST_PLATFORM: #Add the operating system of the device
       HOST_ARCH:  #Add the chip architecture of the device

@@ -6,7 +6,7 @@ import platform
 client = docker.from_env()
 
 # Define the path to the metadata.yaml files to add the service inside of that
-mounted_dir = Path(r"C:\Users\jeppe\OneDrive - Aalborg Universitet\Masters\4. Semester\Gateway Configurator\gateway_folder")
+mounted_dir = Path(r"C:\Users\jeppe\Desktop\gateway_folder")
 
 try:
     client.images.pull(repository="jeppeotte/gateway_configurator", tag="latest")

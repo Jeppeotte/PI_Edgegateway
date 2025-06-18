@@ -164,6 +164,22 @@ class PLCReader:
             audio_datapath.mkdir(parents=True,exist_ok=True)
             logger.info("Created a path for the audio data if the connection drops")
 
+        # Find the sound device
+        device_name = name.lower()
+        input_device_index = None
+        for idx, device in enumerate(sd.query_devices()):
+            if device_name in device['name'].lower() and device['max_input_channels'] > 0:
+                input_device_index = idx
+                break
+
+        if input_device_index is not None:
+            logger.info(
+                f"Using input device: {sd.query_devices(input_device_index)['name']} (index {input_device_index})")
+        else:
+            logger.error(f"No matching input device found for name: {self.USB_device.name}")
+            self.stop_event.set()
+            sys.exit(1)
+
         def audio_callback(indata, frames, time_info, status):
             if status:
                 logger.info(status)
@@ -177,9 +193,14 @@ class PLCReader:
             try:
                 logger.info("Starting audio sampling")
                 sample_time = time.time()
-                with sd.InputStream(samplerate=samplerate, channels=channel, callback=audio_callback, dtype="int16"):
+                with sd.InputStream(samplerate=samplerate,
+                                    channels=channel,
+                                    callback=audio_callback,
+                                    dtype="int16",
+                                    device=(input_device_index,None)):
                     while self.trigger_event.is_set():
                         time.sleep(0.1)  # Keep the thread alive while audio is streaming
+
                 logger.info("Audio sampling stopped")
 
             except sd.PortAudioError as e:

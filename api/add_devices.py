@@ -7,6 +7,7 @@ from docker.errors import ImageNotFound, APIError, ContainerError
 import logging
 import sys
 import os
+import sounddevice as sd
 
 
 logging.basicConfig(
@@ -136,9 +137,6 @@ async def add_S7_device(serviceconfig: S7CommDeviceServiceConfig):
             with open(metadata_path, 'w') as f:
                 yaml.dump(metadata, f)
 
-            # Pull container if it is not already on the device
-            client.images.pull("jeppeotte/s7comm_device_service", tag="latest")
-
             # Start the container
             try:
                 container = client.containers.run(
@@ -166,10 +164,47 @@ async def add_S7_device(serviceconfig: S7CommDeviceServiceConfig):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/available_USB_microphones")
+async def get_microphones():
+    if host_platform != "linux":
+        raise HTTPException(status_code=400, detail="This service only works on gateways using Linux.")
+
+    if host_arch not in ["x86_64", "arm64", "amd64"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported host architecture: {host_arch}")
+
+    try:
+        sd._terminate()
+        sd._initialize()
+        devices = sd.query_devices()
+        input_devices = [
+            {
+                "name": device['name'],
+                "default_samplerate": device['default_samplerate'],
+                "max_input_channels": device['max_input_channels']
+            }
+            for device in devices
+            if device['max_input_channels'] > 0
+        ]
+
+        if not input_devices:
+            # No microphones detected
+            raise HTTPException(status_code=404, detail="No available microphone input devices found.")
+
+        return input_devices
+
+    except HTTPException:
+        raise
+
+    except sd.PortAudioError as e:
+        raise HTTPException(status_code=500, detail=f"PortAudio error: {str(e)}")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
 @router.post("/add_USB_microphone")
 async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
     if host_platform != "linux":
-        raise HTTPException(status_code=400, detail="This service only works on Linux hosts.")
+        raise HTTPException(status_code=400, detail="This service only works on gateways using Linux.")
 
     if host_arch not in ["x86_64", "arm64", "amd64"]:
         raise HTTPException(status_code=400, detail=f"Unsupported host architecture: {host_arch}")
@@ -235,19 +270,6 @@ async def add_USB_microphone(serviceconfig: USBMicrophoneDevice):
                 mqtt_config = yaml.load(f)
 
             backend_ip = mqtt_config["broker"].get("ip","")
-            # Pull container if it is not already on the device
-            try:
-                client.images.pull("jeppeotte/usb_microphone_service", tag="latest")
-            except ImageNotFound:
-                raise HTTPException(status_code=500,
-                                    detail="Docker image not found: jeppeotte/usb_microphone_service:0.0.1")
-            except APIError as e:
-                if "no matching manifest for" in str(e.explanation).lower():
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Incompatible image for this machine's architecture (e.g., x86_64 vs ARM)."
-                    )
-                raise HTTPException(status_code=500, detail=f"Docker API error: {str(e)}")
 
             # Start the container
             try:
@@ -429,7 +451,7 @@ async def delete_device_service(device_id: str):
     try:
         container = client.containers.get(device_id)
         container.remove(force=True)  # force=True will stop it if it's running
-        print("Container removed.")
+        logger.info(f"The following device has been removed: {device_id}")
         return {"message": f"Device service '{device_id}' was successfully removed ."}
 
     except docker.errors.NotFound:
@@ -440,8 +462,8 @@ async def delete_device_service(device_id: str):
 @router.post("/get_container_logs")
 async def get_container_logs(device_id:str):
     try:
-        # Replace this logic with however you're mapping device_id to container
-        container = client.containers.get(device_id)  # assuming device_id is the container name or ID
+        # Get the device service container
+        container = client.containers.get(device_id)
         logs = container.logs(tail=10).decode('utf-8')
         return {"logs": logs}
 
