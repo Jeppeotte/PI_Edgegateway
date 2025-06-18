@@ -87,7 +87,7 @@ def mqtt_connection(identity):
     # Publish DBIRTH
     mqtt_client.publish(
         DBIRTHTOPIC,
-        payload=json.dumps({"timestamp": int(time.time()),
+        payload=json.dumps({"timestamp": time.time(),
                             "status": {"connected": "True"}}),
         qos=0
     )
