@@ -46,11 +46,11 @@ def mqtt_connection(identity):
             mqtt_config = yaml.safe_load(f)
     except FileNotFoundError:
         logger.error(f"Error: The configuration file '{mqtt_configfile_path}' does not exist.")
-        exit()
+        sys.exit(1)
 
     except yaml.YAMLError as e:
         logger.error(f"Error reading the YAML file: {e}")
-        exit()
+        sys.exit(1)
 
     broker_configuration = mqtt_config.get("broker")
     BROKERIP = broker_configuration['ip']
