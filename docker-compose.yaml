@@ -8,8 +8,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - /dev:/dev
     environment:
-      HOST_PLATFORM: #Add the operating system of the device
-      HOST_ARCH:  #Add the chip architecture of the device
+      HOST_PLATFORM: #Add the operating system of the device eg. linux, windows or mac
+      HOST_ARCH:  #Add the chip architecture of the device eg. amd64 or arm64
     ports:
       - "8000:8000"
     privileged: true
